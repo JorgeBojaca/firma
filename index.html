@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000" />
+    <title>____🖋</title>
+
+    <style>
+      ::selection {
+        background-color: transparent;
+      }
+      .menu {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100vw;
+        display: flex;
+        justify-content: end;
+      }
+      button {
+        background-color: rgba(0, 0, 0, 0.8);
+        color: rgba(255, 255, 255, 0.7);
+        border: none;
+        border-radius: 4px;
+        margin: 10px;
+        width: 15vw;
+        padding: 5px 0;
+      }
+      button:hover {
+        background-color: rgba(0, 0, 0, 1);
+        color: rgba(255, 255, 255, 1);
+      }
+      .imgContainer {
+        position: absolute;
+        padding-top: 10vh;
+        width: 100vw;
+        height: 100vh;
+        background-color: #0ff;
+        display: none;
+        justify-content: flex-start;
+        gap: 5vh;
+        align-items: center;
+        flex-direction: column;
+        font-family: monospace;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body style="margin: 0; overflow: hidden; cursor: pointer">
+    <main>
+      <div
+        id="rotateMsg"
+        style="
+          position: absolute;
+          z-index: 10;
+          width: 100vw;
+          height: 100vh;
+          background-color: black;
+          color: white;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: monospace;
+        "
+      >
+        <h3>Rote el dipositivo por favor!</h3>
+      </div>
+      <canvas id="board"></canvas>
+      <div class="menu">
+        <button id="btnRepeat">↩ Repetir</button>
+        <button id="btnCreatePNG">Crear PNG</button>
+      </div>
+    </main>
+    <div class="imgContainer">
+      <h3 style="text-align: center">
+        Presione la firma por unos segundos y luego seleccione descargar imagen
+      </h3>
+      <img class="signaturePNG" />
+      <button id="btnNewSign" style="position: absolute; right: 0; top: 0">
+        Nueva firma
+      </button>
+    </div>
+    <script>
+      const canvas = document.querySelector('#board');
+      const btnCreatePNG = document.querySelector('#btnCreatePNG');
+      const btnRepeat = document.querySelector('#btnRepeat');
+      const btnNewSign = document.querySelector('#btnNewSign');
+      const onTouchList = [];
+      let isDrawing = false;
+      let minX, minY, maxX, maxY;
+
+      resetMaxMin = () => {
+        minX = Number.POSITIVE_INFINITY;
+        minY = Number.POSITIVE_INFINITY;
+        maxX = Number.NEGATIVE_INFINITY;
+        maxY = Number.NEGATIVE_INFINITY;
+      };
+
+      const showCanvas = () => {
+        const canvas = document.querySelector('canvas');
+        const height = window.innerHeight;
+        const width = window.innerWidth;
+        if (canvas) {
+          if (height < width) {
+            document.querySelector('meta[name=theme-color]').content = '#fff';
+            document.querySelector('#rotateMsg').style.display = 'none';
+            canvas.style.display = '';
+            canvas.width = width;
+            canvas.height = height;
+            resetMaxMin();
+          } else {
+            document.querySelector('meta[name=theme-color]').content = '#000';
+            document.querySelector('#rotateMsg').style.display = 'flex';
+            canvas.style.display = 'none';
+          }
+        }
+      };
+
+      console.log('paint');
+      const paintTouch = ({ identifier: id, pageX: x, pageY: y }, isEnd) => {
+        const canvas = document.querySelector('#board');
+        const ctx = canvas.getContext('2d');
+        const touch = onTouchList.find((t) => t.id === id);
+
+        if (touch) {
+          ctx.lineWidth = 4;
+          const lastTouch = touch.values[touch.values.length - 1];
+          ctx.moveTo(lastTouch.x, lastTouch.y);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          touch.values.push({ x, y });
+        } else {
+          ctx.lineWidth = 1;
+          onTouchList.push({ id, values: [{ x, y }] });
+          ctx.beginPath();
+          ctx.arc(x, y, 1, 0, Math.PI * 2, true);
+          ctx.stroke();
+        }
+        if (x > maxX) maxX = x;
+        if (x < minX) minX = x;
+        if (y > maxY) maxY = y;
+        if (y < minY) minY = y;
+
+        if (isEnd) {
+          const idx = onTouchList.findIndex((t) => t.id === id);
+          if (idx >= 0) onTouchList.splice(idx, 1);
+          console.log('maxX', 'minX', 'maxY', 'minY');
+          console.log(maxX, minX, maxY, minY);
+        }
+      };
+
+      const touchHandler = (e, isEnd) => {
+        e.preventDefault();
+        const touches = e.changedTouches;
+        for (let i = 0; i < touches.length; i++) {
+          paintTouch(touches[i], isEnd);
+        }
+      };
+
+      const createPNG = () => {
+        document.querySelector('meta[name=theme-color]').content = '#0ff';
+        const main = document.querySelector('main');
+        const imgContainer = document.querySelector('.imgContainer');
+        main.style.display = 'none';
+        imgContainer.style.display = 'flex';
+        if (minX === Number.POSITIVE_INFINITY) {
+          alert('Solo permitido para dispositivos moviles');
+          return;
+        }
+        const ctx = canvas.getContext('2d');
+        const signature = ctx.getImageData(
+          minX - 10,
+          minY - 10,
+          maxX - minX + 20,
+          maxY - minY + 20
+        );
+        const sigCanvas = document.createElement('canvas');
+        const ctxSig = sigCanvas.getContext('2d');
+        sigCanvas.width = maxX - minX + 20;
+        sigCanvas.height = maxY - minY + 20;
+        ctxSig.putImageData(signature, 0, 0);
+
+        document.querySelector('img').src = sigCanvas.toDataURL();
+        document.querySelector('img').style.display = 'block';
+        canvas.remove();
+      };
+
+      canvas.addEventListener('touchstart', touchHandler);
+      canvas.addEventListener('touchmove', touchHandler);
+      canvas.addEventListener('touchend', (e) => touchHandler(e, true));
+
+      window.addEventListener('mousedown', (e) => {
+        const canvas = document.querySelector('#board');
+        const ctx = canvas.getContext('2d');
+        isDrawing = true;
+        ctx.moveTo(e.pageX, e.pageY);
+      });
+      window.addEventListener('mousemove', (e) => {
+        e.preventDefault();
+        if (isDrawing) {
+          const canvas = document.querySelector('#board');
+          const ctx = canvas.getContext('2d');
+          ctx.lineWidth = 4;
+          ctx.lineTo(e.pageX, e.pageY);
+          ctx.stroke();
+        }
+      });
+      window.addEventListener('mouseup', (e) => (isDrawing = false));
+
+      window.addEventListener('resize', showCanvas);
+      btnCreatePNG.addEventListener('click', createPNG);
+      btnRepeat.addEventListener('click', () => {
+        showCanvas();
+      });
+      btnNewSign.addEventListener('click', () => window.location.reload());
+
+      showCanvas();
+    </script>
+  </body>
+</html>
